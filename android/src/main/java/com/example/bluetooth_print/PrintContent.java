@@ -3,6 +3,7 @@ package com.example.bluetooth_print;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.util.Base64;
+import android.util.Log;
 import com.gprinter.command.CpclCommand;
 import com.gprinter.command.EscCommand;
 import com.gprinter.command.LabelCommand;
@@ -11,26 +12,28 @@ import java.util.List;
 import java.util.Map;
 import java.util.Vector;
 
+/**
+ * @author thon
+ */
 public class PrintContent {
       private static final String TAG = PrintContent.class.getSimpleName();
 
       /**
        * 票据打印对象转换
-       * @return
        */
       public static Vector<Byte> mapToReceipt(Map<String,Object> config, List<Map<String,Object>> list) {
             EscCommand esc = new EscCommand();
             //初始化打印机
             esc.addInitializePrinter();
             //打印走纸多少个单位
-            esc.addPrintAndFeedLines((byte) 3);
+            esc.addPrintAndFeedLines((byte) 1);
 
             // {type:'text|barcode|qrcode|image', content:'', size:4, align: 0|1|2, weight: 0|1, width:0|1, height:0|1, underline:0|1, linefeed: 0|1}
             for (Map<String,Object> m: list) {
                   String type = (String)m.get("type");
                   String content = (String)m.get("content");
                   int align = (int)(m.get("align")==null?0:m.get("align"));
-                  int size = (int)(m.get("size")==null?4:m.get("size"));
+                  int size = (int)(m.get("size")==null?3:m.get("size"));
                   int weight = (int)(m.get("weight")==null?0:m.get("weight"));
                   int width = (int)(m.get("width")==null?0:m.get("width"));
                   int height = (int)(m.get("height")==null?0:m.get("height"));
@@ -46,8 +49,24 @@ public class PrintContent {
                   esc.addSelectJustification(align==0?EscCommand.JUSTIFICATION.LEFT:(align==1?EscCommand.JUSTIFICATION.CENTER:EscCommand.JUSTIFICATION.RIGHT));
 
                   if("text".equals(type)){
+                        int absolutePos = (int)(m.get("absolutePos")==null?0:m.get("absolutePos"));
+                        int relativePos = (int)(m.get("relativePos")==null?0:m.get("relativePos"));
+                        int fontZoom = (int)(m.get("fontZoom")==null?1:m.get("fontZoom"));
+                        short aPos = (short)absolutePos;
+                        short rPos = (short)relativePos;
+                        Log.e(TAG,"******************* absolutePos: " + aPos +", relativePos: " + rPos +", fontZoom: " + fontZoom);
+
+                        // 设置绝对打印位置，将当前打印位置设置到距离行首 n* hor_motion_unit 点
+                        esc.addSetAbsolutePrintPosition(aPos);
+                        // 设置相对打印位置，将打印位置设置到距当前位置 n 点处
+                        esc.addSetRelativePrintPositon(rPos);
                         // 设置为倍高倍宽
                         esc.addSelectPrintModes(EscCommand.FONT.FONTA, emphasized, doubleheight, doublewidth, isUnderline);
+                        if(fontZoom>1){
+                              esc.addSetKanjiFontMode(EscCommand.ENABLE.ON, EscCommand.ENABLE.ON, EscCommand.ENABLE.OFF);
+                        }else{
+                              esc.addSetKanjiFontMode(EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF);
+                        }
                         esc.addText(content);
                         // 取消倍高倍宽
                         esc.addSelectPrintModes(EscCommand.FONT.FONTA, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF, EscCommand.ENABLE.OFF);
@@ -83,7 +102,7 @@ public class PrintContent {
             }
 
             //打印走纸n个单位
-            esc.addPrintAndFeedLines((byte) 4);
+            esc.addPrintAndFeedLines((byte) 1);
 
             // 开钱箱
             esc.addGeneratePlus(LabelCommand.FOOT.F2, (byte) 255, (byte) 255);
@@ -99,7 +118,6 @@ public class PrintContent {
 
       /**
        * 标签打印对象转换
-       * @return
        */
       public static Vector<Byte> mapToLabel(Map<String,Object> config, List<Map<String,Object>> list) {
             LabelCommand tsc = new LabelCommand();
@@ -162,7 +180,6 @@ public class PrintContent {
 
       /**
        * 面单打印对象转换
-       * @return
        */
       public static Vector<Byte> mapToCPCL(Map<String,Object> config, List<Map<String,Object>> list) {
             CpclCommand cpcl = new CpclCommand();
